@@ -66,6 +66,9 @@ class RoverState():
         # Update this image to display your intermediate analysis steps
         # on screen in autonomous mode
         self.vision_image = np.zeros((160, 320, 3), dtype=np.float) 
+        self.navigated = np.zeros((160, 320, 3), dtype=np.float) # navigated pathhhh
+        self.obst = np.zeros((160, 320, 3), dtype=np.float)
+        self.rock = np.zeros((160, 320, 3), dtype=np.float)
         # Worldmap
         # Update this image with the positions of navigable terrain
         # obstacles and rock samples
@@ -109,7 +112,9 @@ def telemetry(sid, data):
         if np.isfinite(Rover.vel):
 
             # Execute the perception and decision steps to update the Rover's state
+
             Rover = perception_step(Rover)
+
             Rover = decision_step(Rover)
 
             # Create output images to send to server
