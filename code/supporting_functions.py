@@ -4,7 +4,8 @@ from PIL import Image
 from io import BytesIO, StringIO
 import base64
 import time
-
+import pynput
+from pynput import keyboard
 # Define a function to convert telemetry strings to float independent of decimal convention
 
 
@@ -128,6 +129,9 @@ def create_output_images(Rover):
     tot_map_pix = np.float(len((Rover.ground_truth[:, :, 1].nonzero()[0])))
     # Calculate the percentage of ground truth map that has been successfully found
     perc_mapped = round(100*good_nav_pix/tot_map_pix, 1)
+    ################################################################
+    
+    ################################################################
     # Calculate the number of good map pixel detections divided by total pixels
     # found to be navigable terrain
     if tot_nav_pix > 0:
@@ -159,5 +163,26 @@ def create_output_images(Rover):
     buff = BytesIO()
     pil_img.save(buff, format="JPEG")
     encoded_string2 = base64.b64encode(buff.getvalue()).decode("utf-8")
+    
+    pil_img = Image.fromarray(Rover.navigated.astype(np.uint8))
+    buff = BytesIO()
+    pil_img.save("Rock/Nav"+"Ele_name" + ".jpeg")
+    
+    pil_img = Image.fromarray(Rover.obst.astype(np.uint8))
+    buff = BytesIO()
+    pil_img.save("Rock/Obs"+"Ele_name" + ".jpeg")
+    
+    pil_img = Image.fromarray(Rover.rock.astype(np.uint8))
+    buff = BytesIO()
+    pil_img.save("Rock/Rock"+"Ele_name" + ".jpeg")
+    
+    pil_img = Image.fromarray(Rover.vision_image.astype(np.uint8))
+    buff = BytesIO()
+    pil_img.save("Rock/VisionImg"+"Ele_name" + ".jpeg")
+
+    
+    pil_img = Image.fromarray(map_add.astype(np.uint8))
+    buff = BytesIO()
+    pil_img.save("Rock/map"+"Ele_name" + ".jpeg")
 
     return encoded_string1, encoded_string2
