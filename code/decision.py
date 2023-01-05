@@ -1,75 +1,80 @@
 import numpy as np
+from utils import deg2rad, rad2deg, normalize_angle_deg
+from BackUp import BackUp
+import random
 
 
-# This is where you can build a decision tree for determining throttle, brake and steer 
-# commands based on the output of the perception_step() function
-def decision_step(Rover):
+# Calculate the  distance to a rock in front of the rover
+def dist_to_rock(Rover):
+# Find the indices of the rocks within 2.5 degrees of the center of the rover's view
+    idx_in_front = np.where(np.abs(Rover.obs_angles) < deg2rad(2.5))[0]
+# If there are no rocks within this range, return None
+    if not len(idx_in_front):
+        print("Dist to rock: N/A")
+        return None
+# Calculate the minimum distance to a rock in front of the rover
+    min_dist = np.min(Rover.rock_dists[idx_in_front])
+    print("Dist to rock: %.2f" % min_dist)
+    return min_dist
 
-    # Implement conditionals to decide what to do given perception data
-    # Here you're all set up with some basic functionality but you'll need to
-    # improve on this decision tree to do a good job of navigating autonomously!
 
-    # Example:
-    # Check if we have vision data to make decisions with
-    if Rover.nav_angles is not None:
-        # Check for Rover.mode status
-        if Rover.mode == 'forward': 
-            # Check the extent of navigable terrain
-            if len(Rover.nav_angles) >= Rover.stop_forward:  
-                # If mode is forward, navigable terrain looks good 
-                # and velocity is below max, then throttle 
-                if Rover.vel < Rover.max_vel:
-                    # Set throttle value to throttle setting
-                    Rover.throttle = Rover.throttle_set
-                else: # Else coast
-                    Rover.throttle = 0
-                Rover.brake = 0
-                # Set steering to average angle clipped to the range +/- 15
-                Rover.steer = np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15)
-            # If there's a lack of navigable terrain pixels then go to 'stop' mode
-            elif len(Rover.nav_angles) < Rover.stop_forward:
-                    # Set mode to "stop" and hit the brakes!
-                    Rover.throttle = 0
-                    # Set brake to stored brake value
-                    Rover.brake = Rover.brake_set
-                    Rover.steer = 0
-                    Rover.mode = 'stop'
 
-        # If we're already in "stop" mode then make different decisions
-        elif Rover.mode == 'stop':
-            # If we're in stop mode but still moving keep braking
-            if Rover.vel > 0.2:
-                Rover.throttle = 0
-                Rover.brake = Rover.brake_set
-                Rover.steer = 0
-            # If we're not moving (vel < 0.2) then do something else
-            elif Rover.vel <= 0.2:
-                # Now we're stopped and we have vision data to see if there's a path forward
-                if len(Rover.nav_angles) < Rover.go_forward:
-                    Rover.throttle = 0
-                    # Release the brake to allow turning
-                    Rover.brake = 0
-                    # Turn range is +/- 15 degrees, when stopped the next line will induce 4-wheel turning
-                    Rover.steer = -15 # Could be more clever here about which way to turn
-                # If we're stopped but see sufficient navigable terrain in front then go!
-                if len(Rover.nav_angles) >= Rover.go_forward:
-                    # Set throttle back to stored value
-                    Rover.throttle = Rover.throttle_set
-                    # Release the brake
-                    Rover.brake = 0
-                    # Set steer to mean angle
-                    Rover.steer = np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15)
-                    Rover.mode = 'forward'
-    # Just to make the rover do something 
-    # even if no modifications have been made to the code
+
+
+# Calculate the steering angle for the rover
+def update_steering(Rover):
+    Rover.steer = calc_steering_angle(Rover)
+
+
+# Update the throttle for the rover
+def update_throttle(Rover):
+# Set the target velocity and throttle based on the rover's objective
+    if Rover.objective == 'mapping':
+        target_velocity = Rover.max_vel
+        throttle = Rover.throttle_set
     else:
-        Rover.throttle = Rover.throttle_set
-        Rover.steer = 0
-        Rover.brake = 0
-        
-    # If in a state where want to pickup a rock send pickup command
-    if Rover.near_sample and Rover.vel == 0 and not Rover.picking_up:
-        Rover.send_pickup = True
-    
+        target_velocity = 0.5
+        throttle = 0.1
+# If the rover's velocity is below the target velocity, increase the throttle
+    if Rover.vel < target_velocity:
+        Rover.throttle = throttle
+    else:
+        Rover.throttle = 0
+
+
+def stop_rover(Rover):
+# Set the throttle, brake, steer, and mode to stop the rover
+    Rover.throttle = 0
+    Rover.brake = Rover.brake_set
+    Rover.steer = 0
+    Rover.mode = 'stop'
+
+
+def turn_rover(Rover, rate=-15):
+# Set the throttle and brake to 0 and set the steer to the specified rate
+    Rover.throttle = 0
+    Rover.brake = 0
+    Rover.steer = rate # Could be more clever here about which way to turn
+
+
+def decision_step(Rover):
+# If the rover's home position has not been set, set it to the current position
+    if Rover.home_pos is None:
+        assert(Rover.pos is not None)
+        Rover.home_pos = Rover.pos
+
+# If the rover has been stuck for 100 iterations and is not currently backing up, push a BackUp state to the front of the queue
+    if Rover.stuck_counter > 100 and not type(Rover.state_machine.current_state()) == type(BackUp) :
+        Rover.state_machine.push_front(BackUp(Rover))
+        Rover.stuck_counter = 0
+# Run the rover's state machine
+    Rover.state_machine.run()
+ # If the throttle is greater than 0 and the velocity is below 0.2, increment the stuck counter. Otherwise, reset the stuck counter to 0
+    if abs(Rover.throttle) > 0:
+        if abs(Rover.vel) < 0.2:
+            Rover.stuck_counter += 1
+        else:
+            Rover.stuck_counter = 0
+
     return Rover
 
