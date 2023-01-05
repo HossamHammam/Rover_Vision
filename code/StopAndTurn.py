@@ -1,4 +1,4 @@
-from perception import is_obstacle_ahead
+
 from Rotate import Rotate
 from utils import *
 class StopAndTurn(object):
