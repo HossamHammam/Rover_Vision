@@ -70,7 +70,7 @@ class MoveForward(object):
 # Find the minimum steering angle for obstacles within 20 meters of the rover
         idx_obs_near = np.where((self.rover.obs_dists < 20) & (self.rover.obs_dists > 0) & (self.rover.obs_angles > 0))[0]
         if not idx_obs_near.size:
-# Set min_obs_angle to 90 degrees
+# If no obstacles are in range Set min_obs_angle to 90 degrees and survey in circles till it finds obstacle
             min_obs_angle = 90
         else:
 # Find minimum angle to nearby obstacles (in degrees)
